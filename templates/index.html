@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NeuroPayx - Connect Bank</title>
+    <style>
+        :root{--bg:#f7f7fb;--card:#ffffff;--accent1:#5b21b6;--accent2:#7c3aed;--success:#10b981;--danger:#ef4444}
+        *{box-sizing:border-box}
+        body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:var(--bg);color:#0f172a}
+        .center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+        .card{width:100%;max-width:600px;background:var(--card);border-radius:20px;box-shadow:0 8px 30px rgba(16,24,40,0.08);padding:28px}
+        header{text-align:center;margin-bottom:24px}
+        h1{font-size:28px;margin:0;letter-spacing:-0.02em}
+        p.sub{margin:6px 0 0;color:#6b7280;font-size:13px}
+        
+        .upload-box{border:2px dashed #e6e9ef;border-radius:12px;padding:24px;text-align:center;color:#6b7280;margin-bottom:20px;transition:all 0.3s}
+        .upload-box:hover{border-color:var(--accent2);background:#f9f7ff}
+        .upload-box.dragover{border-color:var(--accent2);background:#f0e6ff}
+        
+        #fileInput{display:none}
+        .upload-label{cursor:pointer;display:block}
+        .upload-icon{font-size:32px;margin-bottom:8px}
+        .upload-text{font-weight:600;color:#1f2937;margin-bottom:4px}
+        .upload-hint{font-size:12px;color:#9ca3af}
+        
+        button.connect{width:100%;padding:12px 16px;border:0;border-radius:12px;color:white;font-weight:600;background:linear-gradient(90deg,var(--accent1),var(--accent2));cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.18);transition:all 0.3s;margin-bottom:12px}
+        button.connect:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,0.25)}
+        button.connect:active{transform:translateY(1px)}
+        button.connect:disabled{opacity:0.5;cursor:not-allowed}
+        
+        .button-group{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+        .button-group button{margin:0}
+        
+        .results{margin-top:20px;display:none}
+        .result-section{background:#f3f4f6;border-radius:12px;padding:16px;margin-bottom:12px}
+        .result-title{font-weight:600;color:var(--accent1);margin-bottom:8px;font-size:14px}
+        .result-content{font-size:13px;line-height:1.6;color:#374151}
+        .result-row{display:flex;justify-content:space-between;margin:4px 0;padding:4px 0;border-bottom:1px solid #e5e7eb}
+        .result-row:last-child{border:none}
+        .label{font-weight:500;color:#6b7280}
+        .value{font-weight:600;color:#1f2937}
+        .value.positive{color:var(--success)}
+        .value.negative{color:var(--danger)}
+        
+        .loading{text-align:center;color:#6b7280;display:none}
+        .spinner{display:inline-block;width:20px;height:20px;border:3px solid #e5e7eb;border-top-color:var(--accent2);border-radius:50%;animation:spin 0.8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        
+        footer{margin-top:16px;text-align:center;font-size:12px;color:#9ca3af}
+        a.support{color:var(--accent1);text-decoration:underline;cursor:pointer}
+        
+        .error{color:var(--danger);font-size:12px;margin-top:8px;padding:8px;background:#fee2e2;border-radius:8px;display:none}
+        .success-msg{color:var(--success);font-size:12px;margin-top:8px;padding:8px;background:#dcfce7;border-radius:8px;display:none}
+    </style>
+</head>
+<body>
+    <div class="center">
+        <div class="card">
+            <header>
+                <h1>NeuroPayx</h1>
+                <p class="sub">Bank PDF-ni yüklə və məlumatları gör(6 aylıq tarix)</p>
+            </header>
+
+            <div class="upload-box" id="uploadBox">
+                <label for="fileInput" class="upload-label">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">PDF faylını sürüşdür və ya kliklə</div>
+                    <div class="upload-hint">Maksimum 10MB</div>
+                </label>
+                <input type="file" id="fileInput" accept=".pdf" />
+            </div>
+
+            <div class="error" id="errorMsg"></div>
+            <div class="success-msg" id="successMsg"></div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>PDF yüklənir və oxunur...</p>
+            </div>
+
+            <div class="results" id="results">
+                <div class="result-section">
+                    <div class="result-title">💳 KART MƏLUMATLARI</div>
+                    <div class="result-content">
+                        <div class="result-row">
+                            <span class="label">Valyuta:</span>
+                            <span class="value" id="currency">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">Tarix:</span>
+                            <span class="value" id="period">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">Available Balance:</span>
+                            <span class="value positive" id="availableBalance">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <div class="result-title">📊 ƏMƏLIYYAT HAQQINDA</div>
+                    <div class="result-content">
+                        <div class="result-row">
+                            <span class="label">✅ Cəmi Gələn:</span>
+                            <span class="value positive" id="totalCredit">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">❌ Cəmi Çıxan:</span>
+                            <span class="value negative" id="totalDebit">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">💰 Kapanış Balansı:</span>
+                            <span class="value" id="closingBalance">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">Açılış Balansı:</span>
+                            <span class="value" id="openingBalance">-</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="label">Əməliyyat Sayı:</span>
+                            <span class="value" id="transactionCount">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <button class="connect" onclick="window.location.href='/api/analyze'" onc>📈 AI analysis</button>
+            </div>
+
+            <footer>
+                Kömək lazımdır? <a class="support" onclick="alert('Support: support@neuropayx.com')">Dəstək ilə əlaqə</a>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        let pdfData = null;
+
+        const uploadBox = document.getElementById('uploadBox');
+        const fileInput = document.getElementById('fileInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const successMsg = document.getElementById('successMsg');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+
+        // Sürükləmə
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        uploadBox.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        async function handleFile(file) {
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            if (!file) return;
+
+            if (file.type !== 'application/pdf') {
+                showError('Zəhmət olmasa, PDF faylını seçin!');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Fayl 10MB-dan böyükdür!');
+                return;
+            }
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const jsonData = await response.json();
+
+                if (!response.ok) {
+                    showError(jsonData.error || 'Xəta baş verdi');
+                    return;
+                }
+
+                pdfData = jsonData.data;
+                displayResults(pdfData);
+
+            } catch (error) {
+                showError('Xəta: ' + error.message);
+                console.error(error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('currency').textContent = data.currency;
+            document.getElementById('period').textContent = data.period;
+            document.getElementById('availableBalance').textContent = data.availableBalance.toFixed(2) + ' ' + data.currency;
+            document.getElementById('totalCredit').textContent = '✅ ' + data.totalCredit.toFixed(2) + ' ' + data.currency;
+            document.getElementById('totalDebit').textContent = '❌ ' + data.totalDebit.toFixed(2) + ' ' + data.currency;
+            document.getElementById('closingBalance').textContent = data.closingBalance.toFixed(2) + ' ' + data.currency;
+            document.getElementById('openingBalance').textContent = data.openingBalance.toFixed(2) + ' ' + data.currency;
+            document.getElementById('transactionCount').textContent = data.transactionCount;
+
+            results.style.display = 'block';
+            showSuccess('PDF uğurla yükləndi! ✓');
+        }
+
+        async function downloadCSV() {
+            if (!pdfData) {
+                showError('Heç bir fayl tapılmadı!');
+                return;
+            }
+
+            try {
+                loading.style.display = 'block';
+                
+                const response = await fetch('/api/download-csv', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filepath: pdfData.filepath })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showError(error.error);
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'bank_transactions.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+
+                showSuccess('CSV endirildi! ✓');
+            } catch (error) {
+                showError('Xəta: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function downloadExcel() {
+            if (!pdfData) {
+                showError('Heç bir fayl tapılmadı!');
+                return;
+            }
+
+            try {
+                loading.style.display = 'block';
+                
+                const response = await fetch('/api/download-excel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filepath: pdfData.filepath })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showError(error.error);
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'bank_transactions.xlsx';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+
+                showSuccess('Excel endirildi! ✓');
+            } catch (error) {
+                showError('Xəta: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function showAnalysis() {
+            if (!pdfData) {
+                showError('Heç bir fayl tapılmadı!');
+                return;
+            }
+
+            try {
+                loading.style.display = 'block';
+                
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ filepath: pdfData.filepath })
+                });
+
+                const jsonData = await response.json();
+
+                if (!response.ok) {
+                    showError(jsonData.error);
+                    return;
+                }
+
+                const analysis = jsonData.analysis;
+                alert(`
+📊 DƏRİN ANALIZ
+
+Cəmi Əməliyyat: ${analysis.totalTransactions}
+
+✅ Gələn:
+   - Sayı: ${analysis.incomingTransactions.count}
+   - Cəmi: ${analysis.incomingTransactions.total.toFixed(2)} AZN
+   - Orta: ${analysis.averageIncome.toFixed(2)} AZN
+
+❌ Çıxan:
+   - Sayı: ${analysis.outgoingTransactions.count}
+   - Cəmi: ${analysis.outgoingTransactions.total.toFixed(2)} AZN
+   - Orta: ${analysis.averageExpense.toFixed(2)} AZN
+
+📈 Max Əməliyyat: ${analysis.maxTransaction.toFixed(2)} AZN
+📉 Min Əməliyyat: ${analysis.minTransaction.toFixed(2)} AZN
+                `);
+
+            } catch (error) {
+                showError('Xəta: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+        }
+
+        function showSuccess(msg) {
+            successMsg.textContent = msg;
+            successMsg.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
